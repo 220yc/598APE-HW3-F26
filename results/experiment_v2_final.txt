@@ -1,0 +1,27 @@
+CS598APE HW3 - Optimized v2
+
+Grid size: 1001x1001
+Baseline wall time: 610.70 seconds
+Optimized v1 wall time: 1352.80 seconds
+Optimized v2 wall time: 387.77 seconds
+
+Optimized v2 CPU time: 387.73 seconds
+Optimized v2 peak RSS: 12600 KB
+
+Speedup over baseline: 1.575x
+Runtime reduction: 36.5%
+
+Correctness:
+N=31 PASS
+N=1001 PASS
+Exit status: 0
+
+Optimizations:
+- Batched toppling
+- Sequential scanning
+- Contiguous memory allocation
+- Precomputed row boundaries
+
+Conclusion:
+Optimized v2 outperforms the baseline.
+The work-queue approach in v1 was slower.

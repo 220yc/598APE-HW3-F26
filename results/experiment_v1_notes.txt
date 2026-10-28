@@ -1,0 +1,27 @@
+Experiment: Optimized v1
+Grid: 1001x1001
+Compiler: GCC -O3 -lm -g -Werror
+
+Baseline wall time: 610.70 s
+Optimized v1 wall time: 1352.80 s
+Baseline peak RSS: 12472 KB
+Optimized v1 peak RSS: 22316 KB
+
+Speedup: 0.451x
+Runtime increase: 121.5%
+
+Correctness:
+N=31 PASS
+N=1001 PASS (PNG byte comparison)
+
+Optimizations:
+1. Active-cell work queue
+2. Batched toppling
+3. Contiguous grid allocation
+4. Precomputed active mask
+
+Observation:
+The optimized version is slower than baseline.
+Potential causes include queue overhead,
+memory access patterns, and scheduling cost.
+These hypotheses require profiling.

@@ -1,0 +1,21 @@
+Experiment: Optimized v1 profiling
+Grid size: 101x101
+Compiler flags: -O3 -pg -g
+
+Profiler: gprof
+Sampled CPU time: 0.15 seconds
+
+stabilize:
+  CPU percentage: 100%
+  Calls: 2
+  Self time: 0.15 seconds
+
+PNG encoding:
+  Sampled CPU time: approximately 0 seconds
+
+Conclusion:
+Stabilization dominates sampled runtime.
+
+Limitation:
+The sample is short and cannot distinguish
+queue management from toppling costs.

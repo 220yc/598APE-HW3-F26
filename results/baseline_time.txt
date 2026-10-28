@@ -1,0 +1,6 @@
+Grid size: 1001x1001
+Baseline wall time: 610.70 seconds
+Baseline user CPU time: 610.61 seconds
+Maximum resident set size: 12472 KB
+CPU utilization: 99%
+Exit status: 0

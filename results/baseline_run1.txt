@@ -1,0 +1,5 @@
+Grid: 1001x1001
+Wall time: 610.70 seconds
+User CPU time: 610.61 seconds
+Peak RSS: 12472 KB
+Exit status: 0

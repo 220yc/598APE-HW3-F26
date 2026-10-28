@@ -1,0 +1,327 @@
+diff --git a/sandpile.c b/sandpile.c
+index fbd50c9..78c5d84 100644
+--- a/sandpile.c
++++ b/sandpile.c
+@@ -1,141 +1,207 @@
++
+ #include <errno.h>
+ #include <inttypes.h>
+-#include <math.h>
++#include <limits.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <sys/time.h>
+ 
+ #define STB_IMAGE_WRITE_IMPLEMENTATION
+ #include "stb_image_write.h"
+ 
+-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
++static int N;
++static int *grid;
++static unsigned char *active;
++static unsigned char *queued;
++static size_t *queue;
++static size_t capacity, head, tail, count;
++
++static void die(const char *msg) {
++    fprintf(stderr, "%s\n", msg);
++    exit(EXIT_FAILURE);
++}
++
++// Add an unstable cell to the work queue.
++static void enqueue(size_t k) {
++    if (queued[k]) return;
++    if (count == capacity) die("Queue overflow");
+ 
+-static void die(const char *s) {
+-  fprintf(stderr, "%s\n", s);
+-  exit(1);
++    queue[tail] = k;
++    tail = (tail + 1 == capacity) ? 0 : tail + 1;
++    ++count;
++    queued[k] = 1;
+ }
+ 
+-int N = 801;
+-int **grid;
+-
+-// you can also use this function to debug print your sandpile
+-static void render(char *filename) {
+-  int chan = 3;
+-  unsigned char *pixels = (unsigned char *)malloc(N * N * chan * sizeof(char));
+-  int stride = N * chan;
+-  if (!pixels)
+-    die("malloc failed for PNG pixel buffer");
+-  for (int i = 0; i < N; ++i) {
+-    for (int j = 0; j < N; ++j) {
+-      unsigned char r = 0, g = 0, b = 0;
+-      switch (grid[i][j]) {
+-      case 0: // obsidian
+-        r = 15;
+-        g = 15;
+-        b = 25;
+-        break;
+-      case 1: // electric cyan
+-        r = 0;
+-        g = 210;
+-        b = 255;
+-        break;
+-      case 2: // vibrant magenta
+-        r = 230;
+-        g = 30;
+-        b = 130;
+-        break;
+-      case 3: // bright gold
+-        r = 255;
+-        g = 200;
+-        b = 0;
+-        break;
+-      default: // white
+-        r = 0;
+-        g = 0;
+-        b = 0;
+-      }
+-
+-      int pid = (i * N + j) * chan;
+-      pixels[pid] = r;
+-      pixels[pid + 1] = g;
+-      pixels[pid + 2] = b;
++// Add grains and schedule active unstable cells.
++static void add_grains(size_t k, int grains) {
++    grid[k] += grains;
++
++    if (active[k] && grid[k] >= 4) {
++        enqueue(k);
+     }
+-  }
+-  if (stbi_write_png(filename, N, N, chan, pixels, stride)) {
+-    printf("Successfully saved sandpile identity to: %s\n", filename);
+-  } else {
+-    die("Error: stb_image_write failed to save png file\n");
+-  }
+-  free(pixels);
+ }
+ 
+-static void stabilize() {
+-  int changed = 0;
+-  do {
+-    changed = 0;
+-    for (int i = 0; i < N; ++i) {
+-      for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
+-        if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
+-            (N / 2) * (N / 2)) {
+-          if (grid[i][j] < 4)
+-            continue;
+-          changed = 1; // topple it
+-          grid[i][j] -= 4;
+-          if (i > 0)
+-            grid[i - 1][j]++;
+-          if (j > 0)
+-            grid[i][j - 1]++;
+-          if (i < N - 1)
+-            grid[i + 1][j]++;
+-          if (j < N - 1)
+-            grid[i][j + 1]++;
++// Stabilize using batched toppling and a work queue.
++static void stabilize(void) {
++    head = tail = count = 0;
++    memset(queued, 0, capacity);
++
++    for (size_t k = 0; k < capacity; ++k) {
++        if (active[k] && grid[k] >= 4) {
++            enqueue(k);
+         }
+-      }
+     }
+-  } while (changed);
++
++    while (count) {
++        size_t k = queue[head];
++        head = (head + 1 == capacity) ? 0 : head + 1;
++        --count;
++        queued[k] = 0;
++
++        if (grid[k] < 4) continue;
++
++        int q = grid[k] / 4;
++        grid[k] -= 4 * q;
++
++        int i = (int)(k / (size_t)N);
++        int j = (int)(k % (size_t)N);
++
++        if (i > 0)
++            add_grains(k - (size_t)N, q);
++
++        if (j > 0)
++            add_grains(k - 1, q);
++
++        if (i + 1 < N)
++            add_grains(k + (size_t)N, q);
++
++        if (j + 1 < N)
++            add_grains(k + 1, q);
++    }
+ }
+ 
+-void find_identity() {
+-  for (int i = 0; i < N; ++i) {
+-    for (int j = 0; j < N; ++j) {
+-      grid[i][j] = 6;
++// Compute the sandpile identity.
++static void find_identity(void) {
++    for (size_t k = 0; k < capacity; ++k) {
++        grid[k] = 6;
+     }
+-  }
+-  stabilize();
+-  for (int i = 0; i < N; ++i) {
+-    for (int j = 0; j < N; ++j) {
+-      grid[i][j] = 6 - grid[i][j];
++
++    stabilize();
++
++    for (size_t k = 0; k < capacity; ++k) {
++        grid[k] = 6 - grid[k];
+     }
+-  }
+-  stabilize();
++
++    stabilize();
++}
++
++// Render the grid with the original color mapping.
++static void render(const char *filename) {
++    if (capacity > SIZE_MAX / 3)
++        die("Image too large");
++
++    unsigned char *pixels = malloc(capacity * 3);
++
++    if (!pixels)
++        die("Cannot allocate image buffer");
++
++    static const unsigned char colors[4][3] = {
++        {15, 15, 25},
++        {0, 210, 255},
++        {230, 30, 130},
++        {255, 200, 0}
++    };
++
++    for (size_t k = 0; k < capacity; ++k) {
++        int v = grid[k];
++
++        if (v >= 0 && v <= 3) {
++            memcpy(pixels + 3 * k, colors[v], 3);
++        } else {
++            memset(pixels + 3 * k, 0, 3);
++        }
++    }
++
++    if (!stbi_write_png(
++            filename, N, N, 3, pixels, N * 3)) {
++        die("Failed to write PNG");
++    }
++
++    printf(
++        "Successfully saved sandpile identity to: %s\n",
++        filename
++    );
++
++    free(pixels);
+ }
+ 
+ int main(int argc, char **argv) {
+-  if (argc < 2 || argc > 2) {
+-    fprintf(stderr, "Usage: %s N\n", argv[0]);
+-    return EXIT_FAILURE;
+-  }
+-  char *end;
+-  uintmax_t parsed = strtoumax(argv[1], &end, 10);
+-  if (errno || argv[1][0] < '0' || argv[1][0] > '9' || *end || !parsed ||
+-      parsed > INT32_MAX)
+-    die("grid size must be a positive int");
+-  N = (int)parsed;
+-
+-  grid = (int **)malloc(N * sizeof(int *));
+-  for (int i = 0; i < N; ++i) {
+-    grid[i] = (int *)malloc(N * sizeof(int));
+-  }
+-
+-  find_identity();
+-
+-  render("identity.png");
+-  for (int i = 0; i < N; ++i) {
+-    free(grid[i]);
+-  }
+-  free(grid);
+-  return EXIT_SUCCESS;
++    if (argc != 2) {
++        fprintf(stderr, "Usage: %s N\n", argv[0]);
++        return EXIT_FAILURE;
++    }
++
++    errno = 0;
++    char *end = NULL;
++
++    uintmax_t parsed = strtoumax(argv[1], &end, 10);
++
++    if (errno ||
++        argv[1][0] < '0' ||
++        argv[1][0] > '9' ||
++        *end ||
++        parsed == 0 ||
++        parsed > INT_MAX) {
++        die("grid size must be a positive int");
++    }
++
++    N = (int)parsed;
++
++    if ((size_t)N > SIZE_MAX / (size_t)N ||
++        (size_t)N * (size_t)N >
++            SIZE_MAX / sizeof(int)) {
++        die("Grid too large");
++    }
++
++    capacity = (size_t)N * (size_t)N;
++
++    grid = malloc(capacity * sizeof(int));
++    active = calloc(capacity, 1);
++    queued = calloc(capacity, 1);
++    queue = malloc(capacity * sizeof(size_t));
++
++    if (!grid || !active || !queued || !queue)
++        die("Allocation failed");
++
++    // Preserve the original Pac-Man geometry.
++    int center = N / 2;
++    int64_t radius2 = (int64_t)center * center;
++
++    for (int i = 0; i < N; ++i) {
++        int bound = (i > N - 1 - i)
++            ? i : N - 1 - i;
++
++        for (int j = 0; j < N && j <= bound; ++j) {
++            int64_t di = (int64_t)i - center;
++            int64_t dj = (int64_t)j - center;
++
++            if (di * di + dj * dj <= radius2) {
++                active[
++                    (size_t)i * (size_t)N +
++                    (size_t)j
++                ] = 1;
++            }
++        }
++    }
++
++    find_identity();
++    render("identity.png");
++
++    free(queue);
++    free(queued);
++    free(active);
++    free(grid);
++
++    return EXIT_SUCCESS;
+ }

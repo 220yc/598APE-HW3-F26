@@ -1,20 +1,15 @@
-# LaTeX build artifacts
-*.aux
-*.bbl
-*.bcf
-*.blg
-*.fdb_latexmk
-*.fls
-*.lof
-*.log
-*.lot
-*.out
-*.run.xml
-*.synctex
-*.synctex.gz
-*.toc
-*.dvi
-*.xdv
+# Compiled executables and object files
+*.exe
+*.o
 
-# Compiled handouts
-/handout/*.pdf
+# Generated output
+identity.png
+
+# Profiling temporary files
+gmon.out
+gprof.out
+
+# Editor and system files
+.DS_Store
+*~
+*.swp

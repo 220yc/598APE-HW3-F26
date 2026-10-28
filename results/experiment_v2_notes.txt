@@ -1,0 +1,6 @@
+Optimized v2
+Batch Toppling + Sequential Scanning
+Removed active queue
+Contiguous grid allocation
+Precomputed row boundaries
+Correctness N=31: check terminal output
